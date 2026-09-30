@@ -1,0 +1,42 @@
+[
+  {
+    "question": "What is the status of my refund for order ORD-7712?",
+    "responses": [
+      "Your refund for order ORD-7712 has been processed and should reflect in your account within 3-5 business days.",
+      "The refund for ORD-7712 is still pending review by our finance team.",
+      "I'm sorry, but no refund request was found for order ORD-7712."
+    ]
+  },
+  {
+    "question": "Is UPI transaction limit per day Rs 1,00,000?",
+    "responses": [
+      "Yes, the standard UPI transaction limit is Rs 1,00,000 per day for most banks.",
+      "Yes, most banks cap UPI transactions at Rs 1,00,000 per day, though some banks set lower limits.",
+      "The typical daily UPI limit is Rs 1,00,000, but this can vary by bank and account type."
+    ]
+  },
+  {
+    "question": "Can I use my account after 3 failed OTP attempts?",
+    "responses": [
+      "After 3 failed OTP attempts, your account will be temporarily locked for security reasons.",
+      "No, 3 failed OTP attempts will result in a temporary lock on your account.",
+      "Your account remains fully accessible even after multiple failed OTP attempts."
+    ]
+  },
+  {
+    "question": "What are your customer support hours?",
+    "responses": [
+      "Our customer support is available Monday to Friday, 9 AM to 6 PM.",
+      "We're here to help Monday through Friday, from 9 in the morning until 6 in the evening.",
+      "Support hours are Mon-Fri, 9am-6pm."
+    ]
+  },
+  {
+    "question": "Will I be charged a fee for a failed transaction?",
+    "responses": [
+      "No, failed transactions are not charged any fee.",
+      "There is no fee for failed transactions; any amount debited is auto-reversed.",
+      "A small processing fee of Rs 10 applies even if the transaction fails."
+    ]
+  }
+]
