@@ -50,60 +50,24 @@ st.subheader("1. Provide question + candidate responses")
 if "qa_sets" not in st.session_state:
     st.session_state["qa_sets"] = []
 
+if "validation_results" not in st.session_state:
+    st.session_state["validation_results"] = None
+
 col1, col2 = st.columns([1, 1])
 
-# Column 1: Load sample file button & Clear button
-with col1:
-    if st.button("Load sample Q&A sets"):
-        try:
-            with open("sample_qa.json") as f:
-                st.session_state["qa_sets"] = json.load(f)
-            st.success("Sample Q&A sets loaded successfully!")
-            st.rerun()
-        except FileNotFoundError:
-            st.error("sample_qa.json file not found in the directory.")
-    
-    if st.button("Clear all Q&A sets"):
-        st.session_state["qa_sets"] = []
-        st.rerun()
-
-# Column 2: Manual file uploader for custom JSON files
-with col2:
-    uploaded_file = st.file_uploader("Upload custom Q&A JSON file", type=["json"])
-    if uploaded_file is not None:
-        try:
-            st.session_state["qa_sets"] = json.load(uploaded_file)
-            st.success("Custom Q&A sets uploaded successfully!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error reading JSON file: {e}")
-
-with st.expander("➕ Add a question manually"):
-    q = st.text_input("Question")
-    r_text = st.text_area("Candidate responses (one per line, at least 2)")
-    if st.button("Add"):
-        responses = [r.strip() for r in r_text.split("\n") if r.strip()]
-        if q and len(responses) >= 2:
-            st.session_state["qa_sets"].append({"question": q, "responses": responses})
-            st.rerun()
-        else:
-            st.warning("Need a question and at least 2 responses.")
-
-qa_sets = st.session_state["qa_sets"]
-st.write(f"**{len(qa_sets)} question(s) loaded.**")
-
-if qa_sets and st.button("🔍 Validate consistency", type="primary"):
+# Helper function to run validation
+def run_validation(qa_list):
     client = None
     if mode.startswith("LLM"):
         if not api_key:
             st.error("Enter an Anthropic API key, or switch to Mock mode.")
-            st.stop()
+            return None
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
     rows = []
     progress = st.progress(0.0, text="Validating...")
-    for i, qa in enumerate(qa_sets):
+    for i, qa in enumerate(qa_list):
         try:
             if client:
                 result = validate_with_llm(qa["question"], qa["responses"], client)
@@ -123,9 +87,64 @@ if qa_sets and st.button("🔍 Validate consistency", type="primary"):
             "explanation": result["explanation"],
             "recommended_action": result["recommended_action"],
         })
-        progress.progress((i + 1) / len(qa_sets), text=f"Validating... {i+1}/{len(qa_sets)}")
+        progress.progress((i + 1) / len(qa_list), text=f"Validating... {i+1}/{len(qa_list)}")
     progress.empty()
+    return rows
 
+# Column 1: Load sample file button & Clear button
+with col1:
+    if st.button("Load sample Q&A sets"):
+        try:
+            with open("sample_qa.json") as f:
+                st.session_state["qa_sets"] = json.load(f)
+            st.success("Sample Q&A sets loaded successfully!")
+            st.session_state["validation_results"] = run_validation(st.session_state["qa_sets"])
+            st.rerun()
+        except FileNotFoundError:
+            st.error("sample_qa.json file not found in the directory.")
+    
+    if st.button("Clear all Q&A sets"):
+        st.session_state["qa_sets"] = []
+        st.session_state["validation_results"] = None
+        st.rerun()
+
+# Column 2: Manual file uploader for custom JSON files (Auto-validates on upload)
+with col2:
+    uploaded_file = st.file_uploader("Upload custom Q&A JSON file", type=["json"])
+    if uploaded_file is not None:
+        try:
+            data = json.load(uploaded_file)
+            if data != st.session_state["qa_sets"]:
+                st.session_state["qa_sets"] = data
+                st.session_state["validation_results"] = run_validation(data)
+                st.success("Custom Q&A sets uploaded and validated successfully!")
+                st.rerun()
+        except Exception as e:
+            st.error(f"Error reading JSON file: {e}")
+
+with st.expander("➕ Add a question manually"):
+    q = st.text_input("Question")
+    r_text = st.text_area("Candidate responses (one per line, at least 2)")
+    if st.button("Add"):
+        responses = [r.strip() for r in r_text.split("\n") if r.strip()]
+        if q and len(responses) >= 2:
+            st.session_state["qa_sets"].append({"question": q, "responses": responses})
+            st.session_state["validation_results"] = run_validation(st.session_state["qa_sets"])
+            st.rerun()
+        else:
+            st.warning("Need a question and at least 2 responses.")
+
+qa_sets = st.session_state["qa_sets"]
+st.write(f"**{len(qa_sets)} question(s) loaded.**")
+
+# Manual validation button fallback if needed
+if qa_sets and st.button("🔍 Validate consistency", type="primary"):
+    st.session_state["validation_results"] = run_validation(qa_sets)
+    st.rerun()
+
+# Display Results if available in session state
+if st.session_state["validation_results"]:
+    rows = st.session_state["validation_results"]
     df = pd.DataFrame(rows)
 
     st.subheader("2. Results")
@@ -137,13 +156,14 @@ if qa_sets and st.button("🔍 Validate consistency", type="primary"):
 
     st.subheader("3. Detail view")
     for i, qa in enumerate(qa_sets):
-        row = rows[i]
-        with st.expander(f"{row['']} {qa['question']}  —  {row['verdict']} ({row['severity']})"):
-            for j, r in enumerate(qa["responses"]):
-                st.markdown(f"**Response {j+1}:** {r}")
-            if row["contradictions"] != "-":
-                st.error(f"Contradictions: {row['contradictions']}")
-            st.caption(row["explanation"])
+        if i < len(rows):
+            row = rows[i]
+            with st.expander(f"{row['']} {qa['question']}  —  {row['verdict']} ({row['severity']})"):
+                for j, r in enumerate(qa["responses"]):
+                    st.markdown(f"**Response {j+1}:** {r}")
+                if row["contradictions"] != "-":
+                    st.error(f"Contradictions: {row['contradictions']}")
+                st.caption(row["explanation"])
 
     st.download_button("Download results as CSV", df.to_csv(index=False), "validation_results.csv")
 
