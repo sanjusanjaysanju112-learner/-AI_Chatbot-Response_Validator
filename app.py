@@ -5,11 +5,10 @@ Run:
     pip install -r requirements.txt
     streamlit run app.py
 """
-
-import os
 import json
-import streamlit as st
+import os
 import pandas as pd
+import streamlit as st
 
 from validator import validate_with_rules, validate_with_llm
 
@@ -52,15 +51,32 @@ if "qa_sets" not in st.session_state:
     st.session_state["qa_sets"] = []
 
 col1, col2 = st.columns([1, 1])
+
+# Column 1: Load sample file button & Clear button
 with col1:
     if st.button("Load sample Q&A sets"):
-        with open("sample_qa.json") as f:
-            st.session_state["qa_sets"] = json.load(f)
-        st.rerun()
-with col2:
-    if st.button("Clear"):
+        try:
+            with open("sample_qa.json") as f:
+                st.session_state["qa_sets"] = json.load(f)
+            st.success("Sample Q&A sets loaded successfully!")
+            st.rerun()
+        except FileNotFoundError:
+            st.error("sample_qa.json file not found in the directory.")
+    
+    if st.button("Clear all Q&A sets"):
         st.session_state["qa_sets"] = []
         st.rerun()
+
+# Column 2: Manual file uploader for custom JSON files
+with col2:
+    uploaded_file = st.file_uploader("Upload custom Q&A JSON file", type=["json"])
+    if uploaded_file is not None:
+        try:
+            st.session_state["qa_sets"] = json.load(uploaded_file)
+            st.success("Custom Q&A sets uploaded successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error reading JSON file: {e}")
 
 with st.expander("➕ Add a question manually"):
     q = st.text_input("Question")
